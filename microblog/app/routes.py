@@ -1,44 +1,15 @@
-from app import app
-import sqlite3
-from flask import Flask, render_template, request, url_for, flash, redirect
+from app import app, db
+from app.post_db_conn import *
+from flask import render_template, request, url_for, flash, redirect
 from werkzeug.exceptions import abort
-from config import Config
-from forms import LoginForm
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import LoginManager, current_user, login_user, logout_user, login_required
+from app.forms import LoginForm, RegistrationForm
+from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.urls import url_parse
-
-
-def get_db_connection():
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def get_post(post_id):
-    conn = get_db_connection()
-    post = conn.execute('SELECT * FROM posts WHERE id = ?',
-                        (post_id,)).fetchone()
-    conn.close()
-    if post is None:
-        abort(404)
-    return post
-
-app = Flask(__name__)
-app.config.from_object(Config)
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-login = LoginManager(app)
-login.login_view = 'login'
-
-from models import User
-
-@app.shell_context_processor
-def make_shell_context():
-    return {'db': db, 'User': User}
+from app.models import User
 
 
 @app.route('/')
+@app.route('/index')
 @login_required
 def index():
     conn = get_db_connection()
@@ -53,6 +24,8 @@ def about():
 @app.route('/<int:post_id>')
 def post(post_id):
     post = get_post(post_id)
+    if post is None:
+        abort(404)
     return render_template('post.html', post=post)
 
 @app.route('/create', methods=('GET', 'POST'))
@@ -126,5 +99,19 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        user = User(username=form.username.data, email=form.email.data)
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash('Congratulations, you are now a registered user!')
+        return redirect(url_for('login'))
+    return render_template('register.html', title='Register', form=form)
 
 #if __name__ == '__main__':app.run()
