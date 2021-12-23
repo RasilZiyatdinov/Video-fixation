@@ -1,5 +1,8 @@
+import os
 from imutils.video import VideoStream
 from imutils.video import FPS
+from emailer import send_email
+from dotenv import load_dotenv
 import numpy as np
 import argparse
 import imutils
@@ -8,10 +11,11 @@ import cv2
 import uuid
 import sqlite3
 
+load_dotenv()
+
 connection = sqlite3.connect('.\microblog\database.db')
 
 cur = connection.cursor()
-
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
@@ -26,9 +30,9 @@ args = vars(ap.parse_args())
 # initialize the list of class labels MobileNet SSD was trained to
 # detect, then generate a set of bounding box colors for each class
 CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
-	    "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
-	    "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
-	    "sofa", "train", "tvmonitor"]
+           "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
+           "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
+           "sofa", "train", "tvmonitor"]
 
 REQUIRED_CLASSES = ["cat", "dog", "bird", "person"]
 
@@ -62,7 +66,7 @@ while True:
     # predictions
     net.setInput(blob)
     detections = net.forward()
-    
+
     current_objects = set()
     # loop over the detections
     for i in np.arange(0, detections.shape[2]):
@@ -92,14 +96,19 @@ while True:
             if CLASSES[idx] not in last_objects:
                 image = str(uuid.uuid4())
                 full_image = str(uuid.uuid4())
-                cv2.imwrite('.\\microblog\\app\\static\\images\\{}.jpg'.format(image), frame[startY:endY, startX:endX, :])
-                cv2.imwrite('.\\microblog\\app\\static\\images\\{}.jpg'.format(full_image), frame)
+                cv2.imwrite('.\\microblog\\app\\static\\images\\{}.jpg'.format(
+                    image), frame[startY:endY, startX:endX, :])
+                cv2.imwrite('.\\microblog\\app\\static\\images\\{}.jpg'.format(
+                    full_image), frame)
 
                 cur.execute("INSERT INTO posts (title, image, full_image) VALUES (?, ?, ?)",
                             (label, image, full_image))
 
                 connection.commit()
-            
+
+            send_email(os.getenv('SENDTO'), label, "Обнаружен новый объект -> ",
+                       cv2.imencode('.jpg', frame)[1].tobytes())
+
             current_objects.add(CLASSES[idx])
 
     last_objects = current_objects
