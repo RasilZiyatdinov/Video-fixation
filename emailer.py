@@ -29,5 +29,5 @@ def send_email(send_to, label, text, image_bytes):
         server.quit()
 
         print("Письмо отправлено")
-    except:
-        print("Письмо не отправлено")
+    except Exception as e:
+        print("Письмо не отправлено {}".format(e))

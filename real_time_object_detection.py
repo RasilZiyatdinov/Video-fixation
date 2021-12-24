@@ -106,6 +106,7 @@ while True:
 
                 connection.commit()
 
+            print('Распознан объект: {}'.format(label))
             send_email(os.getenv('SENDTO'), label, "Обнаружен новый объект -> ",
                        cv2.imencode('.jpg', frame)[1].tobytes())
 
