@@ -6,7 +6,7 @@ from app.forms import LoginForm, RegistrationForm
 from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.urls import url_parse
 from app.models import User
-
+import os
 
 @app.route('/')
 @app.route('/index')
@@ -74,6 +74,10 @@ def delete(id):
     conn.execute('DELETE FROM posts WHERE id = ?', (id,))
     conn.commit()
     conn.close()
+    image = post['image']
+    full_image = post['full_image']
+    os.remove('.\\app\\static\\images\\{}.jpg'.format(image))
+    os.remove('.\\app\\static\\images\\{}.jpg'.format(full_image))
     flash('"{}" was successfully deleted!'.format(post['title']))
     return redirect(url_for('index'))
 
